@@ -12,9 +12,10 @@ import (
 
 // Server can communicate with a number of turdserve clients.
 type Server struct {
-	pool       sync.Map
-	maxClients int
-	callback   func(id int, msg []byte)
+	pool       sync.Map                 // hold
+	maxClients int                      // the maximum number of clients
+	callback   func(id int, msg []byte) // executes on receipt of data
+	listener   net.Listener             // TCP listener
 }
 
 // NewServer constructs a new server with a set maximum number of concurrent clients.
@@ -24,6 +25,7 @@ func NewServer(maxClients int) *Server {
 		pool:       sync.Map{},
 		maxClients: maxClients,
 		callback:   func(int, []byte) {},
+		listener:   nil,
 	}
 }
 
@@ -36,6 +38,7 @@ func (s *Server) Destroy() {
 		}
 		return true
 	})
+	s.listener.Close()
 }
 
 // SetCallback sets a callback which is executed when the server receives
@@ -45,7 +48,7 @@ func (s *Server) SetCallback(cb func(id int, msg []byte)) *Server {
 	return s
 }
 
-// Run runs the server until an error occurs or Destroy is called.
+// Run runs the server forever until an error occurs or Destroy is called.
 func (s *Server) Run(host string, port uint16) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
