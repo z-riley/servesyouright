@@ -50,14 +50,15 @@ func (s *Server) SetCallback(cb func(id int, msg []byte)) *Server {
 
 // Run runs the server forever until an error occurs or Destroy is called.
 func (s *Server) Run(host string, port uint16) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+	var err error
+	s.listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
+	defer s.listener.Close()
 
 	for {
-		conn, err := listener.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			return err
 		}
