@@ -12,9 +12,10 @@ import (
 
 // Server can communicate with a number of turdserve clients.
 type Server struct {
-	pool       sync.Map                 // hold
+	pool       sync.Map                 // holds client connections
 	maxClients int                      // the maximum number of clients
 	callback   func(id int, msg []byte) // executes on receipt of data
+	dcCallback func(id int)             // executes on client disconnection
 	listener   net.Listener             // TCP listener
 }
 
@@ -25,6 +26,7 @@ func NewServer(maxClients int) *Server {
 		pool:       sync.Map{},
 		maxClients: maxClients,
 		callback:   func(int, []byte) {},
+		dcCallback: func(int) {},
 		listener:   nil,
 	}
 }
@@ -45,6 +47,13 @@ func (s *Server) Destroy() {
 // data from any client.
 func (s *Server) SetCallback(cb func(id int, msg []byte)) *Server {
 	s.callback = cb
+	return s
+}
+
+// SetCallback sets a callback which is executed when the a client disconnects
+// from the server server receives.
+func (s *Server) SetDisconnectCallback(cb func(id int)) *Server {
+	s.dcCallback = cb
 	return s
 }
 
@@ -134,6 +143,7 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 		log.Info().Msgf("Removing connection %d from pool", id)
 		s.pool.Delete(id)
 		conn.Close()
+		s.dcCallback(id)
 		done <- struct{}{}
 	}()
 
