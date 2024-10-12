@@ -12,7 +12,7 @@ func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	client := turdserve.NewClient()
-	if err := client.Connect("0.0.0.0", 8080); err != nil {
+	if err := client.Connect("127.0.0.1", 8080); err != nil {
 		log.Fatal().Err(err).Msg("Client failed to connect")
 	}
 
