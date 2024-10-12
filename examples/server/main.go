@@ -16,12 +16,21 @@ func main() {
 		fmt.Printf("Server received message from connection %d: %s", id, string(msg))
 	})
 
+	// Listen for errors
 	errCh := make(chan error)
-	defer close(errCh)
+	go func() {
+		for err := range errCh {
+			if err != nil {
+				log.Fatal("Server error: ", err)
+			}
+		}
+	}()
 
-	server.Run("0.0.0.0", 8080, errCh)
-	err := <-errCh
-	if err != nil {
-		log.Fatal("Server error: ", err)
+	// Start the server
+	if err := server.Start("0.0.0.0", 8080, errCh); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
+
+	// Do other stuff...
+	select {}
 }

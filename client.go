@@ -33,13 +33,15 @@ func (c *Client) SetCallback(cb func([]byte)) *Client {
 	return c
 }
 
-// Connect connects to the server.
-func (c *Client) Connect(addr string, port uint16, errCh chan error) {
+// Connect connects to the server. An error is returned if the initial connection
+// fails. Subsequent errors are sent down the error channel.
+//
+// The error channel should be opened before Connect is called.
+func (c *Client) Connect(addr string, port uint16, errCh chan error) error {
 	var err error
 	c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
-		errCh <- err
-		return
+		return err
 	}
 
 	// Execute callback on receive
@@ -66,6 +68,8 @@ func (c *Client) Connect(addr string, port uint16, errCh chan error) {
 			time.Sleep(heartbeatInterval)
 		}
 	}()
+
+	return nil
 }
 
 // Write sends data to the server.

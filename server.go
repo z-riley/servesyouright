@@ -57,44 +57,52 @@ func (s *Server) SetDisconnectCallback(cb func(id int)) *Server {
 	return s
 }
 
-// Run runs the server forever until an error occurs or Destroy is called.
-func (s *Server) Run(host string, port uint16, errCh chan error) {
+// Start runs the server forever. An error is returned if the initial listen fails.
+// Susequent errors are sent down the error channel.
+//
+// The error channel should be opened before Start is called.
+func (s *Server) Start(host string, port uint16, errCh chan error) error {
 	var err error
 	s.listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
-		errCh <- err
-		return
+		return err
 	}
-	defer s.listener.Close()
 
-	// Process incoming conncetions
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			errCh <- fmt.Errorf("failed to accept connection: %w", err)
-			return
+	// Process incoming connections
+	go func() {
+		for {
+			conn, err := s.listener.Accept()
+			if err != nil {
+				errCh <- fmt.Errorf("failed to accept connection: %w", err)
+				continue
+			}
+
+			// Check there's enough capacity in connection pool
+			numConns := 0
+			s.pool.Range(
+				func(key, value any) bool {
+					numConns++
+					return true
+				})
+
+			// Reject connection if pool is full
+			if numConns >= s.maxClients {
+				log.Warn().Msg("Max clients reached. Ignoring new client connection")
+				conn.Write(append([]byte("Maximum number of clients reached"), delimChar))
+				conn.Close()
+				continue
+			}
+
+			// Save new connection to pool
+			id := s.generateConnID()
+			s.pool.Store(id, conn)
+			log.Info().Msgf("Assigning incoming connection ID %d", id)
+
+			go s.listenForever(conn, id)
 		}
+	}()
 
-		// Check there's enough capacity in connection pool
-		numConns := 0
-		s.pool.Range(func(key, value any) bool {
-			numConns++
-			return true
-		})
-		if numConns >= s.maxClients {
-			log.Warn().Msg("Max clients reached. Ignoring new client connection")
-			conn.Write(append([]byte("Maximum number of clients reached"), delimChar))
-			conn.Close()
-			continue
-		}
-
-		// Save new connection to pool
-		id := s.generateConnID()
-		s.pool.Store(id, conn)
-		log.Info().Msgf("Assigning incoming connection ID %d", id)
-
-		go s.listenForever(conn, id)
-	}
+	return nil
 }
 
 // ClientIDs returns a slice containing the ID of each client connection.
