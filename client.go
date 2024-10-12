@@ -34,11 +34,12 @@ func (c *Client) SetCallback(cb func([]byte)) *Client {
 }
 
 // Connect connects to the server.
-func (c *Client) Connect(addr string, port uint16) error {
+func (c *Client) Connect(addr string, port uint16, errCh chan error) {
 	var err error
 	c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
-		return err
+		errCh <- err
+		return
 	}
 
 	// Execute callback on receive
@@ -47,8 +48,7 @@ func (c *Client) Connect(addr string, port uint16) error {
 		for {
 			message, err := reader.ReadBytes(delimChar)
 			if err != nil {
-				c.Destroy()
-				fmt.Println("connection terminated: failed to read message from server:", err)
+				errCh <- fmt.Errorf("failed to read message from server: %w", err)
 				return
 			}
 			c.callback(message)
@@ -59,15 +59,13 @@ func (c *Client) Connect(addr string, port uint16) error {
 	go func() {
 		for {
 			if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
-				fmt.Println("connection terminated: failed to send heartbeat to server:", err)
+				errCh <- fmt.Errorf("failed to send heartbeat to server: %w", err)
 				c.conn.Close()
 				return
 			}
 			time.Sleep(heartbeatInterval)
 		}
 	}()
-
-	return nil
 }
 
 // Write sends data to the server.

@@ -16,7 +16,12 @@ func main() {
 		fmt.Printf("Server received message from connection %d: %s", id, string(msg))
 	})
 
-	if err := server.Run("0.0.0.0", 8080); err != nil {
-		log.Fatal("Server error:", err)
+	errCh := make(chan error)
+	defer close(errCh)
+
+	server.Run("0.0.0.0", 8080, errCh)
+	err := <-errCh
+	if err != nil {
+		log.Fatal("Server error: ", err)
 	}
 }

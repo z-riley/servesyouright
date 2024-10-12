@@ -58,18 +58,21 @@ func (s *Server) SetDisconnectCallback(cb func(id int)) *Server {
 }
 
 // Run runs the server forever until an error occurs or Destroy is called.
-func (s *Server) Run(host string, port uint16) error {
+func (s *Server) Run(host string, port uint16, errCh chan error) {
 	var err error
 	s.listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
-		return err
+		errCh <- err
+		return
 	}
 	defer s.listener.Close()
 
+	// Process incoming conncetions
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			return err
+			errCh <- fmt.Errorf("failed to accept connection: %w", err)
+			return
 		}
 
 		// Check there's enough capacity in connection pool
