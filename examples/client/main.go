@@ -2,18 +2,16 @@ package main
 
 import (
 	"fmt"
+	"log"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/z-riley/turdserve"
 )
 
 func main() {
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
 	client := turdserve.NewClient()
+
 	if err := client.Connect("127.0.0.1", 8080); err != nil {
-		log.Fatal().Err(err).Msg("Client failed to connect")
+		log.Fatal("Client failed to connect", err)
 	}
 
 	client.SetCallback(func(b []byte) {

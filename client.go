@@ -48,8 +48,8 @@ func (c *Client) Connect(addr string, port uint16) error {
 			message, err := reader.ReadBytes(delimChar)
 			if err != nil {
 				c.Destroy()
-				fmt.Println("failed to read message from server:", err)
-				time.Sleep(1 * time.Second)
+				fmt.Println("connection terminated: failed to read message from server:", err)
+				return
 			}
 			c.callback(message)
 		}
@@ -59,8 +59,9 @@ func (c *Client) Connect(addr string, port uint16) error {
 	go func() {
 		for {
 			if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
-				c.Destroy()
-				fmt.Println("failed to send heartbeat to server:", err)
+				fmt.Println("connection terminated: failed to send heartbeat to server:", err)
+				c.conn.Close()
+				return
 			}
 			time.Sleep(heartbeatInterval)
 		}
