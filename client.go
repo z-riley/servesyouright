@@ -49,6 +49,7 @@ func (c *Client) Connect(addr string, port uint16) error {
 			if err != nil {
 				c.Destroy()
 				fmt.Println("failed to read message from server:", err)
+				time.Sleep(1 * time.Second)
 			}
 			c.callback(message)
 		}
