@@ -21,11 +21,9 @@ func NewClient() *Client {
 	}
 }
 
-// Destroy closes an existing connection to the server.
+// Destroy closes the connection to the server.
 func (c *Client) Destroy() {
-	if c.conn != nil {
-		c.conn.Close()
-	}
+	c.conn.Close()
 }
 
 // SetCallback sets a callback which is executed when the client receives
