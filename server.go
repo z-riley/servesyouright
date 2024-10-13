@@ -151,9 +151,9 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 	go func() {
 		<-timer.C
 		log.Info().Msgf("Closing connection %d as heartbeat not recevied", id)
+		s.closeConnection(id)
 		log.Info().Msgf("Removing connection %d from pool", id)
 		s.pool.Delete(id)
-		conn.Close()
 		s.dcCallback(id)
 		done <- struct{}{}
 	}()
@@ -183,7 +183,7 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 func (s *Server) closeConnection(id int) {
 	conn, ok := s.pool.Load(id)
 	if !ok {
-		log.Warn().Msg("Could not close connection with ID %d as it does not exist")
+		log.Warn().Msgf("Could not close connection with ID %d as it does not exist", id)
 		return
 	}
 	conn.(net.Conn).Close()

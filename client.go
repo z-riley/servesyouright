@@ -2,7 +2,10 @@ package turdserve
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 )
@@ -10,7 +13,7 @@ import (
 // Client can communicate with a turdserve server.
 type Client struct {
 	conn     net.Conn
-	callback func([]byte)
+	callback func([]byte) // executed on receipt of data
 }
 
 // NewClient constructs a new client. Call Connect to connect to a server.
@@ -39,7 +42,7 @@ func (c *Client) SetCallback(cb func([]byte)) *Client {
 // fails. Subsequent errors are sent down the error channel.
 //
 // The error channel should be opened before Connect is called.
-func (c *Client) Connect(addr string, port uint16, errCh chan error) error {
+func (c *Client) Connect(ctx context.Context, addr string, port uint16, errCh chan error) error {
 	var err error
 	c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
@@ -47,29 +50,42 @@ func (c *Client) Connect(addr string, port uint16, errCh chan error) error {
 	}
 
 	// Execute callback on receive
-	go func() {
+	go func(ctx context.Context) {
 		reader := bufio.NewReader(c.conn)
 		for {
-			message, err := reader.ReadBytes(delimChar)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to read message from server: %w", err)
+			select {
+			case <-ctx.Done():
 				return
+			default:
+				message, err := reader.ReadBytes(delimChar)
+				if err != nil {
+					if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+						return
+					}
+					errCh <- fmt.Errorf("failed to read message from server: %w", err)
+					return
+				}
+				c.callback(message)
 			}
-			c.callback(message)
 		}
-	}()
+	}(ctx)
 
 	// Send heartbeat to server
-	go func() {
+	go func(ctx context.Context) {
+		ticker := time.NewTicker(heartbeatInterval)
 		for {
-			if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
-				errCh <- fmt.Errorf("failed to send heartbeat to server: %w", err)
-				c.conn.Close()
+			select {
+			case <-ctx.Done():
 				return
+			case <-ticker.C:
+				if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
+					errCh <- fmt.Errorf("failed to send heartbeat to server: %w", err)
+					c.conn.Close()
+					return
+				}
 			}
-			time.Sleep(heartbeatInterval)
 		}
-	}()
+	}(ctx)
 
 	return nil
 }
