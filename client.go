@@ -53,6 +53,7 @@ func (c *Client) Connect(addr string, port uint16, errCh chan error) error {
 			message, err := reader.ReadBytes(delimChar)
 			if err != nil {
 				errCh <- fmt.Errorf("failed to read message from server: %w", err)
+				return
 			}
 			c.callback(message)
 		}
@@ -63,6 +64,8 @@ func (c *Client) Connect(addr string, port uint16, errCh chan error) error {
 		for {
 			if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
 				errCh <- fmt.Errorf("failed to send heartbeat to server: %w", err)
+				c.conn.Close()
+				return
 			}
 			time.Sleep(heartbeatInterval)
 		}
