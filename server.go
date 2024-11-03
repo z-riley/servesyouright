@@ -3,31 +3,34 @@ package turdserve
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
+
+var LoggingEnabled bool = false
 
 // Server can communicate with a number of turdserve clients.
 type Server struct {
-	pool       sync.Map                 // holds client connections
-	maxClients int                      // the maximum number of clients
-	callback   func(id int, msg []byte) // executes on receipt of data
-	dcCallback func(id int)             // executes on client disconnection
-	listener   net.Listener             // TCP listener
+	pool               sync.Map                 // holds client connections
+	maxClients         int                      // the maximum number of clients
+	callback           func(id int, msg []byte) // executes on receipt of data
+	connectCallback    func(id int)             // executes on client connection
+	disconnectCallback func(id int)             // executes on client disconnection
+	listener           net.Listener             // TCP listener
 }
 
 // NewServer constructs a new server with a set maximum number of concurrent clients.
 // Call Run to start.
 func NewServer(maxClients int) *Server {
 	return &Server{
-		pool:       sync.Map{},
-		maxClients: maxClients,
-		callback:   func(int, []byte) {},
-		dcCallback: func(int) {},
-		listener:   nil,
+		pool:               sync.Map{},
+		maxClients:         maxClients,
+		callback:           func(int, []byte) {},
+		connectCallback:    func(int) {},
+		disconnectCallback: func(int) {},
+		listener:           nil,
 	}
 }
 
@@ -36,7 +39,7 @@ func (s *Server) Destroy() {
 	s.pool.Range(func(key any, value any) bool {
 		err := value.(net.Conn).Close()
 		if err != nil {
-			log.Warn().Err(err).Msgf("Failed to close connection ID %d", key.(int))
+			logf("Failed to close connection ID %d", key.(int))
 		}
 		return true
 	})
@@ -50,10 +53,17 @@ func (s *Server) SetCallback(cb func(id int, msg []byte)) *Server {
 	return s
 }
 
-// SetCallback sets a callback which is executed when the a client disconnects
-// from the server server receives.
+// SetConnectCallback sets a callback which is executed when the a client connects
+// to the server.
+func (s *Server) SetConnectCallback(cb func(id int)) *Server {
+	s.connectCallback = cb
+	return s
+}
+
+// SetDisconnectCallback sets a callback which is executed when the a client disconnects
+// from the server.
 func (s *Server) SetDisconnectCallback(cb func(id int)) *Server {
-	s.dcCallback = cb
+	s.disconnectCallback = cb
 	return s
 }
 
@@ -87,7 +97,7 @@ func (s *Server) Start(host string, port uint16, errCh chan error) error {
 
 			// Reject connection if pool is full
 			if numConns >= s.maxClients {
-				log.Warn().Msg("Max clients reached. Ignoring new client connection")
+				logf("Max clients reached. Ignoring new client connection")
 				conn.Write(append([]byte("Maximum number of clients reached"), delimChar))
 				conn.Close()
 				continue
@@ -96,7 +106,9 @@ func (s *Server) Start(host string, port uint16, errCh chan error) error {
 			// Save new connection to pool
 			id := s.generateConnID()
 			s.pool.Store(id, conn)
-			log.Info().Msgf("Assigning incoming connection ID %d", id)
+			logf("Assigning incoming connection ID %d", id)
+
+			s.connectCallback(id)
 
 			go s.listenForever(conn, id)
 		}
@@ -150,11 +162,11 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 	done := make(chan struct{})
 	go func() {
 		<-timer.C
-		log.Info().Msgf("Closing connection %d as heartbeat not recevied", id)
+		logf("Closing connection %d as heartbeat not recevied", id)
 		s.closeConnection(id)
-		log.Info().Msgf("Removing connection %d from pool", id)
+		logf("Removing connection %d from pool", id)
 		s.pool.Delete(id)
-		s.dcCallback(id)
+		s.disconnectCallback(id)
 		done <- struct{}{}
 	}()
 
@@ -171,7 +183,7 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 			}
 			if string(message) == heartbeatMsg {
 				timer.Reset(2 * heartbeatInterval)
-				log.Debug().Msgf("Received heartbeat from connection id: %d", id)
+				logf("Received heartbeat from connection id: %d", id)
 			} else {
 				s.callback(id, message)
 			}
@@ -183,8 +195,15 @@ func (s *Server) listenForever(conn net.Conn, id int) {
 func (s *Server) closeConnection(id int) {
 	conn, ok := s.pool.Load(id)
 	if !ok {
-		log.Warn().Msgf("Could not close connection with ID %d as it does not exist", id)
+		logf("Could not close connection with ID %d as it does not exist", id)
 		return
 	}
 	conn.(net.Conn).Close()
+}
+
+// logf logs a messsage if loggingEnabled is set.
+func logf(format string, v ...any) {
+	if LoggingEnabled {
+		log.Printf(format, v...)
+	}
 }

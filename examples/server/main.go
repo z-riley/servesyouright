@@ -12,8 +12,13 @@ func main() {
 	server := turdserve.NewServer(maxClients)
 	defer server.Destroy()
 
+	// Set up callbacks
 	server.SetCallback(func(id int, msg []byte) {
 		fmt.Printf("Server received message from connection %d: %s", id, string(msg))
+	}).SetConnectCallback(func(id int) {
+		fmt.Printf("Client with ID %d connected\n", id)
+	}).SetDisconnectCallback(func(id int) {
+		fmt.Printf("Client with ID %d disconnected\n", id)
 	})
 
 	// Listen for errors
