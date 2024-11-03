@@ -93,6 +93,10 @@ func (c *Client) Connect(ctx context.Context, addr string, port uint16, errCh ch
 
 // Write sends data to the server.
 func (c *Client) Write(b []byte) error {
+	if c.conn == nil {
+		return errors.New("no connection exists")
+	}
+
 	_, err := c.conn.Write(append(b, delimChar))
 	return err
 }
