@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("Write to server failed: %v", err)
 	}
 
-	// Wait until 3s elapses
+	// Cancel the client connection after the timer expires
 	<-timer.C
 	cancelFunc()
 }

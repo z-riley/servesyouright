@@ -44,7 +44,8 @@ func (c *Client) SetCallback(cb func([]byte)) *Client {
 // The error channel should be opened before Connect is called.
 func (c *Client) Connect(ctx context.Context, addr string, port uint16, errCh chan error) error {
 	var err error
-	c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
+	var d net.Dialer
+	c.conn, err = d.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
 		return err
 	}
