@@ -73,12 +73,12 @@ func (c *Client) Connect(ctx context.Context, addr string, port uint16, errCh ch
 
 	// Send heartbeat to server
 	go func(ctx context.Context) {
-		ticker := time.NewTicker(heartbeatInterval)
+		tick := time.Tick(heartbeatInterval)
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
+			case <-tick:
 				if _, err := c.conn.Write([]byte(heartbeatMsg)); err != nil {
 					errCh <- fmt.Errorf("failed to send heartbeat to server: %w", err)
 					c.conn.Close()
