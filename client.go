@@ -12,6 +12,9 @@ import (
 
 // Client can communicate with a turdserve server.
 type Client struct {
+	// ConnectTimeout is the time spent attempting to connect to the server.
+	ConnectTimeout time.Duration
+
 	conn     net.Conn
 	callback func([]byte) // executed on receipt of data
 }
@@ -19,8 +22,10 @@ type Client struct {
 // NewClient constructs a new client. Call Connect to connect to a server.
 func NewClient() *Client {
 	return &Client{
-		conn:     nil,
-		callback: func([]byte) {},
+		ConnectTimeout: 5 * time.Second,
+		conn:           nil,
+		callback: func([]byte) {
+		},
 	}
 }
 
@@ -44,7 +49,9 @@ func (c *Client) SetCallback(cb func([]byte)) *Client {
 // The error channel should be opened before Connect is called.
 func (c *Client) Connect(ctx context.Context, addr string, port uint16, errCh chan error) error {
 	var err error
-	var d net.Dialer
+	d := net.Dialer{
+		Timeout: c.ConnectTimeout,
+	}
 	c.conn, err = d.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
 		return err
