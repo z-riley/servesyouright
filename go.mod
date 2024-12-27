@@ -1,3 +1,3 @@
-module github.com/z-riley/turdserve
+module github.com/z-riley/servesyouright
 
-go 1.23.0
+go 1.23

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/z-riley/turdserve"
+	"github.com/z-riley/servesyouright"
 )
 
 func main() {
 	maxClients := 2
-	server := turdserve.NewServer(maxClients)
+	server := servesyouright.NewServer(maxClients)
 	defer server.Destroy()
 
 	// Set up callbacks

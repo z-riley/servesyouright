@@ -1,4 +1,4 @@
-package turdserve
+package servesyouright
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Client can communicate with a turdserve server.
+// Client can communicate with a servesyouright server.
 type Client struct {
 	// ConnectTimeout is the time spent attempting to connect to the server.
 	ConnectTimeout time.Duration

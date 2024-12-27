@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/z-riley/turdserve"
+	"github.com/z-riley/servesyouright"
 )
 
 func main() {
-	client := turdserve.NewClient()
+	client := servesyouright.NewClient()
 	defer client.Destroy()
 
 	// Create context and send cancellation signal after 3s

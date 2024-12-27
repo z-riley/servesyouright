@@ -1,4 +1,4 @@
-package turdserve
+package servesyouright
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 
 var LoggingEnabled bool = false
 
-// Server can communicate with a number of turdserve clients.
+// Server can communicate with a number of servesyouright clients.
 type Server struct {
 	pool               sync.Map                 // holds client connections
 	maxClients         int                      // the maximum number of clients
